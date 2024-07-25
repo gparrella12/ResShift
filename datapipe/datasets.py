@@ -3,6 +3,7 @@ import numpy as np
 from pathlib import Path
 from scipy.io import loadmat
 
+import os
 import cv2
 import torch
 from functools import partial
@@ -141,6 +142,8 @@ def create_dataset(dataset_config):
         dataset = DegradedDataFromSource(**dataset_config['params'])
     elif dataset_config['type'] == 'bicubic':
         dataset = BicubicFromSource(**dataset_config['params'])
+    elif dataset_config['type'] == 'mybase':
+        dataset = MyBaseData(**dataset_config['params'])
     else:
         raise NotImplementedError(dataset_config['type'])
 
@@ -205,6 +208,54 @@ class BaseData(Dataset):
     def reset_dataset(self):
         self.file_paths = random.sample(self.file_paths_all, self.length)
 
+###################################################################################
+class MyBaseData(Dataset):
+    def __init__(
+            self,
+            dir_path,
+            txt_path=None,
+            transform_type='default',
+            transform_kwargs={'mean':0.0, 'std':1.0},
+            extra_dir_path=None,
+            extra_transform_type=None,
+            extra_transform_kwargs=None,
+            length=None,
+            need_path=False,
+            im_exts=['png', 'jpg', 'jpeg', 'JPEG', 'bmp'],
+            recursive=False,
+            
+            ):
+        super().__init__()
+
+        self.file_paths = []
+        if os.path.isdir(dir_path):
+            self.file_paths.extend(util_common.scan_files_from_folder(dir_path, im_exts, recursive=False))
+        self.groundtruth_base_path = os.path.join(os.path.dirname(dir_path), 'y')
+        
+        self.length = length
+        self.need_path = need_path
+        self.transform = get_transforms(transform_type, transform_kwargs)
+        
+    def __len__(self):
+        return len(self.file_paths)
+
+    def __getitem__(self, index):
+        im_path_base = self.file_paths[index]
+        im_base = util_image.imread(im_path_base, chn='rgb', dtype='float32')
+        if self.transform is not None:
+            im_base = self.transform(im_base)
+        groundtruth_path = os.path.join(self.groundtruth_base_path, im_path_base.split('_')[-1] )
+        
+        im_gt = util_image.imread(groundtruth_path, chn='rgb', dtype='float32')
+        if self.transform is not None:
+            im_gt = self.transform(im_gt)
+        
+        return {'lq':im_base, 'gt':im_gt}
+
+    def reset_dataset(self):
+        self.file_paths = random.sample(self.file_paths, self.length)
+
+###################################################################################
 class BSRGANLightDegImageNet(Dataset):
     def __init__(self,
                  dir_paths=None,
