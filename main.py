@@ -20,14 +20,14 @@ def get_parser(**parser_kwargs):
             "--resume",
             type=str,
             const=True,
-            default="",
+            default=False,
             nargs="?",
             help="resume from the save_dir or checkpoint",
             )
     parser.add_argument(
             "--cfg_path",
             type=str,
-            default="./configs/training/ffhq256_bicubic8.yaml",
+            default="/home/prrgpp000/ResShift/configs/my_realsr_swinunet_realesrgan256.yaml",
             help="Configs of yaml file",
             )
     args = parser.parse_args()
